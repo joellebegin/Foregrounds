@@ -14,8 +14,8 @@ class Foregrounds:
     -luminosty_alpha: index describing the power law distribution from which foreground
     luminosities will be drawn.'''
 
-    def __init__(self, bandwith, n, foregrounds_per_pix, foreground_alpha = [2.5,0.5],
-                min_temp = 3., luminosity_alpha = 4.):
+    def __init__(self, bandwith = [100,200], n=200, foregrounds_per_pix=5, 
+                foreground_alpha = [2.5,0.5], min_temp = 3., luminosity_alpha = 4.):
         
         self.n = n 
         self.n_f = foregrounds_per_pix
@@ -24,6 +24,7 @@ class Foregrounds:
         self.tmin = min_temp
         self.l_alpha = luminosity_alpha
 
+        #foregrounds in frequency space
         self.generate_frequency_array()
         self.generate_foregrounds()
 
@@ -32,24 +33,22 @@ class Foregrounds:
         are given by the specified bandwith, and the spacing is given by the
         size of the box, n.'''
 
-        self.nu = np.linspace(self.bandwith[0], self.bandwith[1], self.n -1)
-        self.nu_arr = np.ones((self.n-1, self.n, self.n))*self.nu[:,None,None]
+        self.nu = np.linspace(self.bandwith[0], self.bandwith[1], self.n)
+        self.nu_arr = np.ones((self.n, self.n, self.n))*self.nu[:,None,None]
     
 
     def generate_foregrounds(self):
-        '''generates total temperature per pixel due to all foregrounds'''
+        '''generates total temperature per pixel due to all foregrounds, where 
+        the main axis is the frequency axis. i.e. frequency_space_temps[i] gives
+        the temperatures at a frequency of self.nu[i]'''
         
         #total temperature contributions to each pixel from all the foregrounds
-        self.T = np.zeros((self.n-1, self.n, self.n))
-        self.amplitudes = np.zeros((self.n,self.n))
+        self.frequency_space_temps = np.zeros((self.n, self.n, self.n))
         
         #one loop generates temperature due to one foreground in each pixel
         for i in range(self.n_f):
             self.add_foreground_temp()
         
-        #first frequency slice is sum of luminosities generated in generate_amplitudes()
-        self.temp = np.vstack((self.amplitudes[None], self.T))
-
     def add_foreground_temp(self):
         '''for each foreground, generates its spectrum T(nu) = L*nu**(-alpha)
         where L is generated in generate_amplitudes() and alpha is drawn from 
@@ -58,7 +57,7 @@ class Foregrounds:
         self.generate_amplitudes()
         alpha = np.random.normal(self.f_alpha[0],self.f_alpha[1], (self.n,self.n))
         lnT = np.log(self.amps[None:,:]) - alpha*np.log(self.nu_arr)
-        self.T += np.exp(lnT) 
+        self.frequency_space_temps += np.exp(lnT) 
 
     def generate_amplitudes(self):
         '''The luminosity of each foreground, ie L in the foreground's spectrum
@@ -70,14 +69,10 @@ class Foregrounds:
         m = self.tmin
         self.amps = (np.random.pareto(a, (self.n,self.n)) +1)*m 
         
-        self.amplitudes += self.amps
-
 
 def main():
 
-    f = Foregrounds([90,100], 4, 1)
-    print(f.nu)
-    print(f.nu_arr)
+    f = Foregrounds()
 
 if __name__=="__main__":
     main()
