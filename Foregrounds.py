@@ -2,17 +2,44 @@ import numpy as np
 from astropy.cosmology import WMAP9 as cosmo
 
 class Foregrounds:
-    ''' generates 3d box with extragalactic foregrounds. Each pixel has a
+    ''' 
+    generates 3d box with extragalactic foregrounds. Each pixel has a
     specified number of foregrounds, where every foreground has a different 
     spectrum T(nu) = A*v**(-alpha), where A is as specified in generate_amplitudes().
 
-    -n: dimensions of box
-    -foregrounds_per_pixel: number of foregrounds in one pixel
-    -foreground_alpha: specifies the gaussian distribution from which the index 
-    of the foreground is drawn. Array/tuple with [mean, std]
-    -min_temp: mininum temperature to be considered for the luminosity of foregrounds
-    -luminosty_alpha: index describing the power law distribution from which foreground
-    luminosities will be drawn.'''
+    Parameters
+    ----------
+    n: int
+        dimensions of box. by default, a box 3D box with n**3 pixels is produced
+    
+    foregrounds_per_pixel: int
+        number of foregrounds in one pixel
+    
+    foreground_alpha: array or tuple of ints or floats
+        specifies the gaussian distribution from which the index of the foreground 
+        is drawn. Array/tuple with [mean, std]
+
+    min_temp: float 
+        mininum temperature to be considered for the luminosity of foregrounds. 
+        Very important that it is float and not int, the pareto function does not
+        like ints. 
+
+    luminosty_alpha: float 
+        index describing the power law distribution from which foreground
+        luminosities will be drawn. Also very important that float and not int
+
+    
+    Methods
+    -------
+    foreground.frequency_space(bandwidth):
+        after having instanciated a foreground object, frequency_space gives a
+        uniformly spaced grid in frequency with foreground contamination
+
+    foreground.real_space(central_frequency):
+        after having instanciated a foreground object, given some central frequency,
+        returns a uniformly spaced grid in real space centered on the distance 
+        corresponding to the central frequency.
+    '''
 
     def __init__(self, n=200, foregrounds_per_pix=5, foreground_alpha = [2.5,0.5], 
                 min_temp = 3., luminosity_alpha = 4.):
@@ -25,9 +52,31 @@ class Foregrounds:
         self.NU_21CM = 1420 #MHz
 
 
+    #========================METHODS THAT OUTPUT BOXES========================#
+
     def frequency_space(self, bandwith = [100,200]):
-        '''-bandwith: range of frequencies that will be considered. 
-        Array/tuple with [nu_min, nu_max]'''
+        '''
+        Returns a box that is uniformly spaced in frequency. The range of frequencies
+        is specified by the bandwidth, and the spacing by the size of the box.
+        Every slice contains the foreground temperature at a specific frequency. 
+        That is, frequency_space_temps[i] is what the sky would look like at 
+        a frequency of self.nu[i]. 
+
+        Parameters
+        ----------
+        -bandwith: Array/tuple of ints or floats
+            range of frequencies that will be considered. 
+            Array/tuple with [nu_min, nu_max]
+            
+        Returns
+        -------
+        -frequency_space_temps: 3D numpy array
+            3D box where every slice contains foreground temperatures at different
+            frequencies
+        -nu: 1D numpy array
+            The frequencies corresponding to each slice. frequency_space_temps[i]
+            is at frequency nu[i]
+        '''
 
         self.bandwith = bandwith
 
@@ -42,20 +91,18 @@ class Foregrounds:
         self.r_0 = self.z_to_dist(self.freq_to_z(central_freq))
 
 
-    def generate_frequency_array(self): #fspace
-        '''generates the range of frequencies considered. Max and min frequencies
-        are given by the specified bandwith, and the spacing is given by the
-        size of the box, n.'''
+    #=============FUNCTIONS RELATED TO THE FREQUENCY SPACE OUTPUT=============#
+
+    def generate_frequency_array(self):
+        '''generates the range of frequencies considered.'''
 
         self.nu = np.linspace(self.bandwith[0], self.bandwith[1], self.n)
         self.nu_arr = np.ones((self.n, self.n, self.n))*self.nu[:,None,None]
     
 
-    def generate_foregrounds(self): #fspace
-        '''generates total temperature per pixel due to all foregrounds, where 
-        the main axis is the frequency axis. i.e. frequency_space_temps[i] gives
-        the temperatures at a frequency of self.nu[i]'''
-        
+    def generate_foregrounds(self):
+        '''generates total temperature per pixel due to all foregrounds'''
+
         #total temperature contributions to each pixel from all the foregrounds
         self.frequency_space_temps = np.zeros((self.n, self.n, self.n))
         
@@ -63,18 +110,48 @@ class Foregrounds:
         for i in range(self.n_f):
             self.frequency_space_temps += self.add_foreground_temp(self.nu_arr)
         
+    
+    #================FUNCTIONS RELATED TO THE REAL SPACE OUTPUT================#
 
-    def add_foreground_temp(self, freq_array): #foregrounds
-        '''for each foreground, generates its spectrum T(nu) = L*nu**(-alpha)
-        where L is generated in generate_amplitudes() and alpha is drawn from 
-        a normal distribution.'''
+    def freq_to_z(self, nu):
+    
+        return self.NU_21CM/nu -1
+
+    def z_to_dist(self, z):
+       
+        return cosmo.comoving_distance(z)
+
+
+    #================FUNCTIONS RELATED TO THE FOREGROUND MODEL================#
+
+    def add_foreground_temp(self, freq_array):
+        '''for one foreground in each pixel, generates its spectrum 
+        T(nu) = L*nu**(-alpha) where L is generated in generate_amplitudes() 
+        and alpha is drawn from a normal distribution.
+        
+        Parameters
+        ----------
+        freq_array: 3D numpy array
+            3D numpy array where one 2D slice has the frequencies at that index.
+            Ie if nu[i] = nu_0: 
+            freq_array[i] = [[nu_0,nu_0,....,nu_0],
+                              ...
+                             [nu_0,nu_0,....,nu_0]]
+                             
+        Returns
+        -------
+        temps: 3D numpy array
+            a 3D numpy array where each pixel has temperature of one foreground 
+            at a specific frequency
+        '''
 
         self.generate_amplitudes()
         alpha = np.random.normal(self.f_alpha[0],self.f_alpha[1], (self.n,self.n))
         lnT = np.log(self.amps[None:,:]) - alpha*np.log(freq_array)
-        return np.exp(lnT) 
+        temps = np.exp(lnT)
+        return temps 
 
-    def generate_amplitudes(self): #foregrounds
+    def generate_amplitudes(self):
         '''The luminosity of each foreground, ie L in the foreground's spectrum
         T(nu) = L*nu**(-f_alpha) is drawn from a power law distribution 
         P(x) = N*x**(-l_alpha) for x > tmin, where N is a normalization factor.
@@ -84,13 +161,6 @@ class Foregrounds:
         m = self.tmin
         self.amps = (np.random.pareto(a, (self.n,self.n)) +1)*m 
 
-    def freq_to_z(self, nu):
-    
-        return self.NU_21CM/nu -1
-
-    def z_to_dist(self, z):
-       
-        return cosmo.comoving_distance(z)
 
 
 def main():
