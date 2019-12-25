@@ -7,7 +7,6 @@ class Foregrounds:
     specified number of foregrounds, where every foreground has a different 
     spectrum T(nu) = A*v**(-alpha), where A is as specified in generate_amplitudes().
 
-    -bandwith: range of frequencies that will be considered. Array/tuple with [nu_min, nu_max]
     -n: dimensions of box
     -foregrounds_per_pixel: number of foregrounds in one pixel
     -foreground_alpha: specifies the gaussian distribution from which the index 
@@ -16,20 +15,28 @@ class Foregrounds:
     -luminosty_alpha: index describing the power law distribution from which foreground
     luminosities will be drawn.'''
 
-    def __init__(self, bandwith = [100,200], n=200, foregrounds_per_pix=5, 
-                foreground_alpha = [2.5,0.5], min_temp = 3., luminosity_alpha = 4.):
+    def __init__(self, n=200, foregrounds_per_pix=5, foreground_alpha = [2.5,0.5], 
+                min_temp = 3., luminosity_alpha = 4.):
         
         self.n = n 
         self.n_f = foregrounds_per_pix
-        self.bandwith = bandwith
         self.f_alpha = foreground_alpha
         self.tmin = min_temp
         self.l_alpha = luminosity_alpha
         self.NU_21CM = 1420 #MHz
 
+
+    def frequency_space(self, bandwith = [100,200]):
+        '''-bandwith: range of frequencies that will be considered. 
+        Array/tuple with [nu_min, nu_max]'''
+
+        self.bandwith = bandwith
+
         #foregrounds in frequency space
         self.generate_frequency_array()
         self.generate_foregrounds()
+
+        return(self.frequency_space_temps)
 
     def generate_frequency_array(self):
         '''generates the range of frequencies considered. Max and min frequencies
@@ -94,9 +101,7 @@ class Foregrounds:
 def main():
 
     f = Foregrounds()
-    f.freq_to_z()
-    f.z_to_dist()
-    print(f.dist_arr)
+    freqs = f.frequency_space()
 
 if __name__=="__main__":
     main()
