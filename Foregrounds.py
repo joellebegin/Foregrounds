@@ -1,5 +1,8 @@
 import numpy as np 
 from astropy.cosmology import WMAP9 as cosmo
+from astropy.coordinates import Distance
+import astropy.units as u
+from astropy.cosmology import z_at_value
 
 class Foregrounds:
     ''' 
@@ -59,7 +62,7 @@ class Foregrounds:
         Returns a box that is uniformly spaced in frequency. The range of frequencies
         is specified by the bandwidth, and the spacing by the size of the box.
         Every slice contains the foreground temperature at a specific frequency. 
-        That is, frequency_space_temps[i] is what the sky would look like at 
+        That is, foreground_temps[i] is what the sky would look like at 
         a frequency of self.nu[i]. 
 
         Parameters
@@ -74,7 +77,7 @@ class Foregrounds:
             3D box where every slice contains foreground temperatures at different
             frequencies
         -nu: 1D numpy array
-            The frequencies corresponding to each slice. frequency_space_temps[i]
+            The frequencies corresponding to each slice. foreground_temps[i]
             is at frequency nu[i]
         '''
 
@@ -82,13 +85,21 @@ class Foregrounds:
 
         #foregrounds in frequency space
         self.generate_frequency_array()
-        self.generate_foregrounds()
+        self.generate_foregrounds(self.nu_arr)
 
-        return(self.frequency_space_temps)
+        return self.foreground_temps
 
     def real_space(self, central_freq = 150, L = 300):
+        self.L = L
         
+        #finds distance that central frequency corresponds to
         self.r_0 = self.z_to_dist(self.freq_to_z(central_freq))
+        
+        #given grid spacing, finds the comoving distances are contained in box
+        self.generate_distances()
+        self.distances_to_freq() #converts distances back to frequencies
+        self.generate_foregrounds(self.frequency_grid)
+        return self.foreground_temps
 
 
     #=============FUNCTIONS RELATED TO THE FREQUENCY SPACE OUTPUT=============#
@@ -98,32 +109,64 @@ class Foregrounds:
 
         self.nu = np.linspace(self.bandwith[0], self.bandwith[1], self.n)
         self.nu_arr = np.ones((self.n, self.n, self.n))*self.nu[:,None,None]
-    
 
-    def generate_foregrounds(self):
-        '''generates total temperature per pixel due to all foregrounds'''
 
-        #total temperature contributions to each pixel from all the foregrounds
-        self.frequency_space_temps = np.zeros((self.n, self.n, self.n))
-        
-        #one loop generates temperature due to one foreground in each pixel
-        for i in range(self.n_f):
-            self.frequency_space_temps += self.add_foreground_temp(self.nu_arr)
-        
-    
     #================FUNCTIONS RELATED TO THE REAL SPACE OUTPUT================#
 
+    def generate_distances(self):
+        '''
+        The grid is centered at r_0, and the grid spacing is set by the real space
+        length of the box, and the number of pixels along one axis. 
+
+        The comoving distance of each slice is then determined by the resolution. 
+        '''
+        self.delta_r = self.L/self.n #realspace resolution
+        self.comoving_dist = (np.ones(self.n)*self.r_0 
+                - Distance((self.n/2 - np.arange(0,self.n))*self.delta_r, 
+                unit = u.Mpc, allow_negative=True))
+
+
+    def distances_to_freq(self):
+        '''
+        converts the comoving ditances of the grid back to frequencies.
+        '''
+        z = []
+        for dist in self.comoving_dist:
+            z.append(z_at_value(cosmo.comoving_distance, dist))
+        self.redshifts = np.array(z) 
+
+        self.frequencies = self.NU_21CM/(self.redshifts + 1)
+        self.frequency_grid = np.ones((self.n, self.n, self.n))*self.frequencies[:,None,None]
+        
     def freq_to_z(self, nu):
-    
+        '''
+        Given a frequency nu, finds the redshift that would correspond to a 
+        redshifted 21-cm photon detected with that frequency today. 
+        '''
         return self.NU_21CM/nu -1
 
     def z_to_dist(self, z):
-       
+        ''' 
+        Given a redshift, finds the correspoding comoving distance
+        '''
         return cosmo.comoving_distance(z)
 
 
     #================FUNCTIONS RELATED TO THE FOREGROUND MODEL================#
 
+   
+    def generate_foregrounds(self, arr):
+        '''generates total temperature per pixel due to all foregrounds'''
+
+        #total temperature contributions to each pixel from all the foregrounds
+        self.foreground_temps = np.zeros((self.n, self.n, self.n))
+        
+        #one loop generates temperature due to one foreground in each pixel
+        for i in range(self.n_f):
+            self.foreground_temps += self.add_foreground_temp(arr)
+        
+    
+   
     def add_foreground_temp(self, freq_array):
         '''for one foreground in each pixel, generates its spectrum 
         T(nu) = L*nu**(-alpha) where L is generated in generate_amplitudes() 
@@ -166,7 +209,18 @@ class Foregrounds:
 def main():
 
     f = Foregrounds()
-    freqs = f.frequency_space()
+    print(f.real_space())
+    # print(f.r_0.value)
 
+    test =Distance(20, unit = u.Mpc)
+    # print(f.r_0)
+    # print(f.delta_r)
+    # print(f.comoving_dist)
+    cdist = f.comoving_dist
+    # z = []
+    # for dist in cdist:
+    #     z.append(z_at_value(cosmo.comoving_distance, dist))
+    # # print(z_at_value(cosmo.comoving_distance, f.comoving_dist))
+    # print(f.frequency_grid[100])
 if __name__=="__main__":
     main()
