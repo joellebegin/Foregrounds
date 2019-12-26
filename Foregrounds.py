@@ -22,14 +22,14 @@ class Foregrounds:
         specifies the gaussian distribution from which the index of the foreground 
         is drawn. Array/tuple with [mean, std]
 
-    min_temp: float 
-        mininum temperature to be considered for the luminosity of foregrounds. 
-        Very important that it is float and not int, the pareto function does not
-        like ints. 
+    mean_150MHz: float 
+        Mean temperature at 150MHz  
+        
 
     luminosty_alpha: float 
         index describing the power law distribution from which foreground
-        luminosities will be drawn. Also very important that float and not int
+        luminosities will be drawn. Very important that it is float and not int, 
+        the pareto function does not like ints. 
 
     
     Methods
@@ -45,12 +45,12 @@ class Foregrounds:
     '''
 
     def __init__(self, n=200, foregrounds_per_pix=5, foreground_alpha = [2.5,0.5], 
-                min_temp = 3., luminosity_alpha = 4.):
+                mean_150Mhz = 300., luminosity_alpha = 4.):
         
         self.n = n 
         self.n_f = foregrounds_per_pix
         self.f_alpha = foreground_alpha
-        self.tmin = min_temp
+        self.mean_150Mhz = mean_150Mhz
         self.l_alpha = luminosity_alpha
         self.NU_21CM = 1420 #MHz
 
@@ -73,7 +73,7 @@ class Foregrounds:
             
         Returns
         -------
-        -frequency_space_temps: 3D numpy array
+        -foreground_temps: 3D numpy array
             3D box where every slice contains foreground temperatures at different
             frequencies
         -nu: 1D numpy array
@@ -87,18 +87,36 @@ class Foregrounds:
         self.generate_frequency_array()
         self.generate_foregrounds(self.nu_arr)
 
-        return self.foreground_temps
+        return (self.foreground_temps, self.nu)
 
     def real_space(self, central_freq = 150, L = 300):
+        '''
+        Returns a box that is uniformly spaced in comoving distance. The grid 
+        spacing is specified by L and n. 
+
+        Parameters
+        ----------
+        -central_freq: int or float
+            the frequency that will be placed at the center of the box
+        -L: int or float
+            real space length of the box in Mpc
+            
+        Returns
+        -------
+        -foreground_temps: 3D numpy array
+            3D box where every slice contains foreground temperatures at different
+            frequencies
+        '''
+        
         self.L = L
         
         #finds distance that central frequency corresponds to
         self.r_0 = self.z_to_dist(self.freq_to_z(central_freq))
         
-        #given grid spacing, finds the comoving distances are contained in box
-        self.generate_distances()
+        self.generate_distances() #finds the comoving distances are contained in box
         self.distances_to_freq() #converts distances back to frequencies
         self.generate_foregrounds(self.frequency_grid)
+        
         return self.foreground_temps
 
 
@@ -190,7 +208,7 @@ class Foregrounds:
 
         self.generate_amplitudes()
         alpha = np.random.normal(self.f_alpha[0],self.f_alpha[1], (self.n,self.n))
-        lnT = np.log(self.amps[None:,:]) - alpha*np.log(freq_array)
+        lnT = np.log(self.amps[None:,:]) - alpha*np.log(freq_array/150)
         temps = np.exp(lnT)
         return temps 
 
@@ -201,7 +219,8 @@ class Foregrounds:
         '''
 
         a = self.l_alpha -1 #since pareto is defined for x**(-1-a) not x**a
-        m = self.tmin
+        
+        m = self.mean_150Mhz*(a-1)/a #minimum temperature set by mean
         self.amps = (np.random.pareto(a, (self.n,self.n)) +1)*m 
 
 
