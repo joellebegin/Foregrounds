@@ -178,12 +178,15 @@ class Foregrounds:
 
         #total temperature contributions to each pixel from all the foregrounds
         self.foreground_temps = np.zeros((self.n, self.n, self.n))
-        
+        self.amplitudes = []
+
         #one loop generates temperature due to one foreground in each pixel
         for i in range(self.n_f):
             self.foreground_temps += self.add_foreground_temp(arr)
         
         self.foreground_temps *= (1/self.n_f)
+
+        self.amplitudes = np.array(self.amplitudes) #amplitudes of each foreground
    
     def add_foreground_temp(self, freq_array):
         '''for one foreground in each pixel, generates its spectrum 
@@ -205,7 +208,7 @@ class Foregrounds:
             a 3D numpy array where each pixel has temperature of one foreground 
             at a specific frequency
         '''
-
+    
         self.generate_amplitudes()
         alpha = np.random.normal(self.f_alpha[0],self.f_alpha[1], (self.n,self.n))
         lnT = np.log(self.amps[None:,:]) - alpha*np.log(freq_array/150)
@@ -222,6 +225,7 @@ class Foregrounds:
         
         m = self.mean_150Mhz*(a-1)/a #minimum temperature set by mean
         self.amps = (np.random.pareto(a, (self.n,self.n)) +1)*m 
+        self.amplitudes.append(self.amps)
 
 
 
