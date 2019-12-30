@@ -45,7 +45,7 @@ class Foregrounds:
     '''
 
     def __init__(self, n=200, foregrounds_per_pix=5, foreground_alpha = [2.5,0.5], 
-                mean_150Mhz = 300., luminosity_alpha = 4.):
+                mean_150Mhz = 300., luminosity_alpha = 2.75):
         
         self.n = n 
         self.n_f = foregrounds_per_pix
@@ -97,8 +97,8 @@ class Foregrounds:
         Parameters
         ----------
         -central_freq: int or float
-            the frequency that will be placed at the center of the box
-        -L: int or float
+            the frequency that will be placed at the center of the box in MHz
+        -L: int or float. 
             real space length of the box in Mpc
             
         Returns
