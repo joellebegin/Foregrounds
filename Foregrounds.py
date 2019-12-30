@@ -186,7 +186,7 @@ class Foregrounds:
         for i in range(self.n_f):
             self.foreground_temps += self.add_foreground_temp(arr)
         
-    
+        self.foreground_temps *= (1/self.n_f)
    
     def add_foreground_temp(self, freq_array):
         '''for one foreground in each pixel, generates its spectrum 
@@ -229,3 +229,5 @@ class Foregrounds:
         
         m = self.mean_150Mhz*(a-1)/a #minimum temperature set by mean
         self.amps = (np.random.pareto(a, (self.n,self.n)) +1)*m 
+        
+        
