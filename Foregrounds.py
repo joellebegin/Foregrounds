@@ -8,12 +8,12 @@ class Foregrounds:
     ''' 
     generates 3d box with extragalactic foregrounds. Each pixel has a
     specified number of foregrounds, where every foreground has a different 
-    spectrum T(nu) = A*v**(-alpha), where A is as specified in generate_amplitudes().
+    spectrum T(nu) = A*nu**(-alpha), where A is as specified in generate_amplitudes().
 
     Parameters
     ----------
     n: int
-        dimensions of box. by default, a box 3D box with n**3 pixels is produced
+        dimensions of box. a 3D box with n**3 pixels is produced
     
     foregrounds_per_pixel: int
         number of foregrounds in one pixel
@@ -25,15 +25,14 @@ class Foregrounds:
     mean_150MHz: float 
         Mean temperature at 150MHz  
         
-
     luminosty_alpha: float 
         index describing the power law distribution from which foreground
         luminosities will be drawn. Very important that it is float and not int, 
         the pareto function does not like ints. 
 
     
-    Methods
-    -------
+    Attributes
+    ----------
     foreground.frequency_space(bandwidth):
         after having instanciated a foreground object, frequency_space gives a
         uniformly spaced grid in frequency with foreground contamination
@@ -41,7 +40,7 @@ class Foregrounds:
     foreground.real_space(central_frequency):
         after having instanciated a foreground object, given some central frequency,
         returns a uniformly spaced grid in real space centered on the distance 
-        corresponding to the central frequency.
+        corresponding to central_frequency.
     '''
 
     def __init__(self, n=200, foregrounds_per_pix=5, foreground_alpha = [2.5,0.5], 
@@ -67,16 +66,18 @@ class Foregrounds:
 
         Parameters
         ----------
-        -bandwith: Array/tuple of ints or floats
+        bandwith: Array/tuple of ints or floats
             range of frequencies that will be considered. 
             Array/tuple with [nu_min, nu_max]
             
+
         Returns
         -------
-        -foreground_temps: 3D numpy array
+        foreground_temps: 3D numpy array
             3D box where every slice contains foreground temperatures at different
             frequencies
-        -nu: 1D numpy array
+
+        nu: 1D numpy array
             The frequencies corresponding to each slice. foreground_temps[i]
             is at frequency nu[i]
         '''
@@ -96,14 +97,16 @@ class Foregrounds:
 
         Parameters
         ----------
-        -central_freq: int or float
+        central_freq: int or float
             the frequency that will be placed at the center of the box
-        -L: int or float
+        
+        L: int or float
             real space length of the box in Mpc
+            
             
         Returns
         -------
-        -foreground_temps: 3D numpy array
+        foreground_temps: 3D numpy array
             3D box where every slice contains foreground temperatures at different
             frequencies
         '''
@@ -123,7 +126,7 @@ class Foregrounds:
     #=============FUNCTIONS RELATED TO THE FREQUENCY SPACE OUTPUT=============#
 
     def generate_frequency_array(self):
-        '''generates the range of frequencies considered.'''
+        '''generates the uniformly spaced range of frequencies considered.'''
 
         self.nu = np.linspace(self.bandwith[0], self.bandwith[1], self.n)
         self.nu_arr = np.ones((self.n, self.n, self.n))*self.nu[:,None,None]
@@ -134,7 +137,7 @@ class Foregrounds:
     def generate_distances(self):
         '''
         The grid is centered at r_0, and the grid spacing is set by the real space
-        length of the box, and the number of pixels along one axis. 
+        length of the box and the number of pixels along one axis. 
 
         The comoving distance of each slice is then determined by the resolution. 
         '''
@@ -187,8 +190,11 @@ class Foregrounds:
    
     def add_foreground_temp(self, freq_array):
         '''for one foreground in each pixel, generates its spectrum 
-        T(nu) = L*nu**(-alpha) where L is generated in generate_amplitudes() 
+        T(nu) = A*(nu/150)**(-alpha) where A is generated in generate_amplitudes() 
         and alpha is drawn from a normal distribution.
+
+        Dividing nu by 150 makes it so that the average luminosity at 150 MHz 
+        can be controlled.
         
         Parameters
         ----------
@@ -213,33 +219,15 @@ class Foregrounds:
         return temps 
 
     def generate_amplitudes(self):
-        '''The luminosity of each foreground, ie L in the foreground's spectrum
-        T(nu) = L*nu**(-f_alpha) is drawn from a power law distribution 
-        P(x) = N*x**(-l_alpha) for x > tmin, where N is a normalization factor.
+        '''The luminosity of each foreground, ie A in the foreground's spectrum
+        T(nu) = A*(nu/150)**(-f_alpha) is drawn from a power law distribution 
+        P(x) = N*x**(-l_alpha). Where N is a normalization factor which, is
+        determined so that the average of the distribution is mean_150MHz.
         '''
 
         a = self.l_alpha -1 #since pareto is defined for x**(-1-a) not x**a
         
         m = self.mean_150Mhz*(a-1)/a #minimum temperature set by mean
         self.amps = (np.random.pareto(a, (self.n,self.n)) +1)*m 
-
-
-
-def main():
-
-    f = Foregrounds()
-    print(f.real_space())
-    # print(f.r_0.value)
-
-    test =Distance(20, unit = u.Mpc)
-    # print(f.r_0)
-    # print(f.delta_r)
-    # print(f.comoving_dist)
-    cdist = f.comoving_dist
-    # z = []
-    # for dist in cdist:
-    #     z.append(z_at_value(cosmo.comoving_distance, dist))
-    # # print(z_at_value(cosmo.comoving_distance, f.comoving_dist))
-    # print(f.frequency_grid[100])
-if __name__=="__main__":
-    main()
+        
+        
