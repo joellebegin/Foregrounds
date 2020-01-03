@@ -44,7 +44,7 @@ class Foregrounds:
     '''
 
     def __init__(self, n=200, foregrounds_per_pix=5, foreground_alpha = [2.5,0.5], 
-                mean_150Mhz = 300., luminosity_alpha = 2.75):
+                mean_150Mhz = 300., luminosity_alpha = 1.75):
         
         self.n = n 
         self.n_f = foregrounds_per_pix
@@ -231,7 +231,8 @@ class Foregrounds:
 
         a = self.l_alpha -1 #since pareto is defined for x**(-1-a) not x**a
         
-        m = self.mean_150Mhz*(a-1)/a #minimum temperature set by mean
+        m = 1 #minimum temperature set by mean
         self.amps = (np.random.pareto(a, (self.n,self.n)) +1)*m 
+        self.amps *= self.mean_150Mhz/np.mean(self.amps)
         self.amplitudes.append(self.amps)
 
