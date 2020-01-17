@@ -90,7 +90,7 @@ class Foregrounds:
 
         return (self.foreground_temps, self.nu)
 
-    def real_space(self, central_freq = 150, L = 300):
+    def real_space(self, central_freq = 150, central_z = None, L = 300):
         '''
         Returns a box that is uniformly spaced in comoving distance. The grid 
         spacing is specified by L and n. 
@@ -115,7 +115,11 @@ class Foregrounds:
         self.L = L
         
         #finds distance that central frequency corresponds to
-        self.r_0 = self.z_to_dist(self.freq_to_z(central_freq))
+
+        if central_z is not None:
+            self.r_0 = self.z_to_dist(central_z)
+        else:
+            self.r_0 = self.z_to_dist(self.freq_to_z(central_freq))
         
         self.generate_distances() #finds the comoving distances are contained in box
         self.distances_to_freq() #converts distances back to frequencies
