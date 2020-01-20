@@ -146,10 +146,8 @@ class Foregrounds:
 
         The comoving distance of each slice is then determined by the resolution. 
         '''
-        self.delta_r = self.L/self.n #realspace resolution
-        self.comoving_dist = (np.ones(self.n)*self.r_0 
-                - Distance((self.n/2 - np.arange(0,self.n))*self.delta_r, 
-                unit = u.Mpc, allow_negative=True))
+        self.delta_r = (self.L/self.n)*u.Mpc #realspace resolution
+        self.comoving_dist = self.r_0 + np.arange(-1*self.n//2,self.n//2)*self.delta_r
 
 
     def distances_to_freq(self):
