@@ -44,7 +44,7 @@ class Foregrounds:
     '''
 
     def __init__(self, n=200, foregrounds_per_pix=5, foreground_alpha = [2.5,0.5], 
-                mean_150Mhz = 300., luminosity_alpha = 2.75):
+                mean_150Mhz = 300., luminosity_alpha = 1.75):
         
         self.n = n 
         self.n_f = foregrounds_per_pix
@@ -90,7 +90,7 @@ class Foregrounds:
 
         return (self.foreground_temps, self.nu)
 
-    def real_space(self, central_freq = 150, L = 300):
+    def real_space(self, central_freq = 150, central_z = None, L = 300):
         '''
         Returns a box that is uniformly spaced in comoving distance. The grid 
         spacing is specified by L and n. 
@@ -115,7 +115,11 @@ class Foregrounds:
         self.L = L
         
         #finds distance that central frequency corresponds to
-        self.r_0 = self.z_to_dist(self.freq_to_z(central_freq))
+
+        if central_z is not None:
+            self.r_0 = self.z_to_dist(central_z)
+        else:
+            self.r_0 = self.z_to_dist(self.freq_to_z(central_freq))
         
         self.generate_distances() #finds the comoving distances are contained in box
         self.distances_to_freq() #converts distances back to frequencies
@@ -142,10 +146,8 @@ class Foregrounds:
 
         The comoving distance of each slice is then determined by the resolution. 
         '''
-        self.delta_r = self.L/self.n #realspace resolution
-        self.comoving_dist = (np.ones(self.n)*self.r_0 
-                - Distance((self.n/2 - np.arange(0,self.n))*self.delta_r, 
-                unit = u.Mpc, allow_negative=True))
+        self.delta_r = (self.L/self.n)*u.Mpc #realspace resolution
+        self.comoving_dist = self.r_0 + np.arange(-1*self.n//2,self.n//2)*self.delta_r
 
 
     def distances_to_freq(self):
@@ -231,7 +233,8 @@ class Foregrounds:
 
         a = self.l_alpha -1 #since pareto is defined for x**(-1-a) not x**a
         
-        m = self.mean_150Mhz*(a-1)/a #minimum temperature set by mean
+        m = 1 #minimum temperature set by mean
         self.amps = (np.random.pareto(a, (self.n,self.n)) +1)*m 
+        self.amps *= self.mean_150Mhz/np.mean(self.amps)
         self.amplitudes.append(self.amps)
 
